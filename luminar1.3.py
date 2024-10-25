@@ -177,6 +177,7 @@ class ImageProcessor:
         self.total_usage_time = 0
         self.pomodoro_running = False
         self.pomodoro_thread = None
+        self.canvas = None
         self.setup_ui()
         
     def manage_profiles(self):
@@ -257,114 +258,6 @@ class ImageProcessor:
             return {}
         with open(self.profile_path, 'r') as file:
             return json.load(file)
-        
-    def setup_ui(self):
-        self.root.geometry("1000x700")
-        self.root.configure(bg="#FFFFFF")
-
-        try:
-            italiana_font = tkFont.Font(family="Italiana", size=70)
-            istok_regular_font = tkFont.Font(family="Istok Web", size=17)
-            istok_bold_font = tkFont.Font(family="Istok Web", size=20, weight="bold")
-        except:
-            italiana_font = tkFont.Font(family="Arial", size=20)
-            istok_regular_font = tkFont.Font(family="Arial", size=20)
-            istok_bold_font = tkFont.Font(family="Arial", size=20, weight="bold")
-
-        canvas = tk.Canvas(self.root, width=1000, height=700)
-        canvas.pack()
-
-        # Create the canvas and apply the gradient background
-        color1 = rgb_to_tuple("#89CFF0")
-        color2 = rgb_to_tuple("#96D8B9")
-        color3 = rgb_to_tuple("#C9A0DC")
-        colors = [color1, color2, color3]
-        create_horizontal_gradient(canvas, colors, 1000, 700)
-
-        # Define button colors
-        green_color = "#8FBC8F"
-        hover_green = "#556B2F"
-        blue_color = "#4682B4"
-        hover_blue = "#4169E1"
-
-        # Place the white rounded rectangle
-        rounded_rectangle(canvas, 15.0, 30.0, 985.0, 670.0, radius=25, fill="#FFFFFF", outline="")
-
-        # Create the header rounded rectangle and text
-        rounded_rectangle(canvas, 15.0, 30.0, 986.0, 129.0, radius=25, fill="#6A5ACD", outline="")
-        canvas.create_text(300.0, 26.0, anchor="nw", text="LUMINAR", fill="#FFFFFF", font=italiana_font)
-
-        start_button = rounded_rectangle(canvas, 26.0, 154.0, 249.0, 205.0, radius=20, fill=green_color, outline="")
-        start_button_text = canvas.create_text(137.5, 180.0, text="Start", fill="#FFFFFF", font=istok_bold_font)
-        bind_button(canvas, start_button, start_button_text, hover_green, green_color, self.start_processing)
-
-        stop_button = rounded_rectangle(canvas, 268.0, 154.0, 491.0, 205.0, radius=20, fill=green_color, outline="")
-        stop_button_text = canvas.create_text(379.0, 180.0, text="Stop", fill="#FFFFFF", font=istok_bold_font)
-        bind_button(canvas, stop_button, stop_button_text, hover_green, green_color, self.stop_processing)
-
-        settings_button = rounded_rectangle(canvas, 510.0, 154.0, 733.0, 205.0, radius=20, fill=green_color, outline="")
-        settings_button_text = canvas.create_text(621.0, 180.0, text="Settings", fill="#FFFFFF", font=istok_bold_font)
-        bind_button(canvas, settings_button, settings_button_text, hover_green, green_color, self.open_settings)
-
-        profile_button = rounded_rectangle(canvas, 752.0, 154.0, 975.0, 205.0, radius=20, fill=green_color, outline="")
-        profile_button_text = canvas.create_text(863.0, 180.0, text="Manage Profiles", fill="#FFFFFF", font=istok_bold_font)
-        bind_button(canvas, profile_button, profile_button_text, hover_green, green_color, self.manage_profiles)
-
-        pomodoro_button = rounded_rectangle(canvas, 376.0, 238.0, 625.0, 297.0, radius=20, fill=blue_color, outline="")
-        self.pomodoro_button_text = canvas.create_text(500.5, 267.5, text="Start Pomodoro", fill="#FFFFFF", font=istok_bold_font)
-        bind_button(canvas, pomodoro_button, self.pomodoro_button_text, hover_blue, blue_color, self.start_pomodoro)
-
-        # Screen usage history labels
-        canvas.create_text(41.0, 363.0, anchor="nw", text="Screen Usage History", fill="#6A5ACD", font=istok_bold_font)
-
-        rounded_rectangle(canvas, 66, 400, 935, 600, radius=20, fill="#ADD8E6", outline='')
-        create_treeview(canvas, self.root)
-
-        # Pomodoro indicator label
-        self.pomodoro_status_text = canvas.create_text(350.0, 311.0, anchor="nw", text="Pomodoro Status: Idle", fill="#483D8B", font=istok_bold_font)
-
-        # Screen usage label
-        self.screen_usage_label = tk.Label(self.root, text="Screen Usage: Not started", bg="#FFFFFF", fg="#6A5ACD", font=istok_regular_font)
-        self.screen_usage_label.pack(pady=10)
-
-    def start_processing(self):
-        if not self.running:
-            self.running = True
-
-            # Disable buttons while processing
-            # self.disable_buttons()
-
-            if self.start_time is None:
-                self.start_time = time.time()
-            on_start()
-            threading.Thread(target=self.process_images).start()
-            threading.Thread(target=self.monitor_health).start()
-            threading.Thread(target=self.adaptive_color_temperature).start()
-            self.update_screen_usage()
-
-    def stop_processing(self):
-        if self.running:
-            self.running = False
-
-            # Enable buttons after processing
-            # self.enable_buttons()
-
-            current_session_time = time.time() - self.start_time
-            self.total_usage_time += current_session_time
-            total_usage_minutes = int(self.total_usage_time / 60)
-            seconds_remaining = int(self.total_usage_time % 60)
-            current_date = time.strftime("%m/%d/%Y")
-            usage_time_str = f"{total_usage_minutes} minutes and {seconds_remaining} seconds"
-            
-            # Update usage_logs
-            log_session_stop()
-            
-            # Update treeview
-            update_treeview()
-            
-            messagebox.showinfo("Session Ended", f"Total screen usage time: {usage_time_str}.")
-            self.start_time = None
-            self.update_screen_usage()
         # Load custom font
         try:
             italiana_font = tkFont.Font(family="Italiana", size=70)
@@ -440,7 +333,115 @@ class ImageProcessor:
         delete_button.pack(pady=5)
 
         new_window.resizable(True, True)
+        
+    def setup_ui(self):
+        self.root.geometry("1000x700")
+        self.root.configure(bg="#FFFFFF")
 
+        try:
+            italiana_font = tkFont.Font(family="Italiana", size=70)
+            istok_regular_font = tkFont.Font(family="Istok Web", size=17)
+            istok_bold_font = tkFont.Font(family="Istok Web", size=20, weight="bold")
+        except:
+            italiana_font = tkFont.Font(family="Arial", size=20)
+            istok_regular_font = tkFont.Font(family="Arial", size=20)
+            istok_bold_font = tkFont.Font(family="Arial", size=20, weight="bold")
+
+        self.canvas = tk.Canvas(self.root, width=1000, height=700)
+        self.canvas.pack()
+
+        # Create the canvas and apply the gradient background
+        color1 = rgb_to_tuple("#89CFF0")
+        color2 = rgb_to_tuple("#96D8B9")
+        color3 = rgb_to_tuple("#C9A0DC")
+        colors = [color1, color2, color3]
+        create_horizontal_gradient(self.canvas, colors, 1000, 700)
+
+        # Define button colors
+        green_color = "#8FBC8F"
+        hover_green = "#556B2F"
+        blue_color = "#4682B4"
+        hover_blue = "#4169E1"
+
+        # Place the white rounded rectangle
+        rounded_rectangle(self.canvas, 15.0, 30.0, 985.0, 670.0, radius=25, fill="#FFFFFF", outline="")
+
+        # Create the header rounded rectangle and text
+        rounded_rectangle(self.canvas, 15.0, 30.0, 986.0, 129.0, radius=25, fill="#6A5ACD", outline="")
+        self.canvas.create_text(300.0, 26.0, anchor="nw", text="LUMINAR", fill="#FFFFFF", font=italiana_font)
+
+        start_button = rounded_rectangle(self.canvas, 26.0, 154.0, 249.0, 205.0, radius=20, fill=green_color, outline="")
+        start_button_text = self.canvas.create_text(137.5, 180.0, text="Start", fill="#FFFFFF", font=istok_bold_font)
+        bind_button(self.canvas, start_button, start_button_text, hover_green, green_color, self.start_processing)
+
+        stop_button = rounded_rectangle(self.canvas, 268.0, 154.0, 491.0, 205.0, radius=20, fill=green_color, outline="")
+        stop_button_text = self.canvas.create_text(379.0, 180.0, text="Stop", fill="#FFFFFF", font=istok_bold_font)
+        bind_button(self.canvas, stop_button, stop_button_text, hover_green, green_color, self.stop_processing)
+
+        settings_button = rounded_rectangle(self.canvas, 510.0, 154.0, 733.0, 205.0, radius=20, fill=green_color, outline="")
+        settings_button_text = self.canvas.create_text(621.0, 180.0, text="Settings", fill="#FFFFFF", font=istok_bold_font)
+        bind_button(self.canvas, settings_button, settings_button_text, hover_green, green_color, self.open_settings)
+
+        profile_button = rounded_rectangle(self.canvas, 752.0, 154.0, 975.0, 205.0, radius=20, fill=green_color, outline="")
+        profile_button_text = self.canvas.create_text(863.0, 180.0, text="Manage Profiles", fill="#FFFFFF", font=istok_bold_font)
+        bind_button(self.canvas, profile_button, profile_button_text, hover_green, green_color, self.manage_profiles)
+
+        pomodoro_button = rounded_rectangle(self.canvas, 376.0, 238.0, 625.0, 297.0, radius=20, fill=blue_color, outline="")
+        self.pomodoro_button_text = self.canvas.create_text(500.5, 267.5, text="Start Pomodoro", fill="#FFFFFF", font=istok_bold_font)
+        bind_button(self.canvas, pomodoro_button, self.pomodoro_button_text, hover_blue, blue_color, self.toggle_pomodoro)
+
+        # Screen usage history labels
+        self.canvas.create_text(41.0, 363.0, anchor="nw", text="Screen Usage History", fill="#6A5ACD", font=istok_bold_font)
+
+        rounded_rectangle(self.canvas, 66, 400, 935, 600, radius=20, fill="#ADD8E6", outline='')
+        create_treeview(self.canvas, self.root)
+
+        # Pomodoro indicator label
+        self.pomodoro_status_text = self.canvas.create_text(350.0, 311.0, anchor="nw", text="Pomodoro Status: Idle", fill="#483D8B", font=istok_bold_font)
+
+        # Screen usage label
+        self.screen_usage_label = tk.Label(self.root, text="Screen Usage: Not started", bg="#FFFFFF", fg="#6A5ACD", font=istok_regular_font)
+        self.screen_usage_label.pack(pady=10)
+
+    def start_processing(self):
+        if not self.running:
+            self.running = True
+
+            # Disable buttons while processing
+            # self.disable_buttons()
+
+            if self.start_time is None:
+                self.start_time = time.time()
+            on_start()
+            threading.Thread(target=self.process_images).start()
+            threading.Thread(target=self.monitor_health).start()
+            threading.Thread(target=self.adaptive_color_temperature).start()
+            self.update_screen_usage()
+
+    def stop_processing(self):
+        if self.running:
+            self.running = False
+
+            # Enable buttons after processing
+            # self.enable_buttons()
+
+            current_session_time = time.time() - self.start_time
+            self.total_usage_time += current_session_time
+            total_usage_minutes = int(self.total_usage_time / 60)
+            seconds_remaining = int(self.total_usage_time % 60)
+            current_date = time.strftime("%m/%d/%Y")
+            usage_time_str = f"{total_usage_minutes} minutes and {seconds_remaining} seconds"
+            
+            # Update usage_logs
+            log_session_stop()
+            
+            # Update treeview
+            update_treeview()
+            
+            messagebox.showinfo("Session Ended", f"Total screen usage time: {usage_time_str}.")
+            self.start_time = None
+            self.update_screen_usage()
+    
     def create_profile(self, parent_window, profile_list):
         name = simpledialog.askstring("Profile Name", "Enter a new profile name:", parent=parent_window)
         if name:
@@ -506,17 +507,19 @@ class ImageProcessor:
     def start_pomodoro(self):
         if not self.pomodoro_running:
             self.pomodoro_running = True
-            self.root.itemconfig(self.pomodoro_button_text, text="Stop Pomodoro")
-            self.root.itemconfig(self.pomodoro_status_text, text="Pomodoro Status: Running")
+            self.canvas.itemconfig(self.pomodoro_button_text, text="Stop Pomodoro")
+            self.canvas.itemconfig(self.pomodoro_status_text, text="Pomodoro Status: Running")
             self.pomodoro_thread = threading.Thread(target=self.pomodoro_timer)
             self.pomodoro_thread.start()
+
     def stop_pomodoro(self):
         if self.pomodoro_running:
             self.pomodoro_running = False
-            self.root.itemconfig(self.pomodoro_button_text, text="Start Pomodoro")
-            self.root.itemconfig(self.pomodoro_status_text, text="Pomodoro Status: Stopped")
+            self.canvas.itemconfig(self.pomodoro_button_text, text="Start Pomodoro")
+            self.canvas.itemconfig(self.pomodoro_status_text, text="Pomodoro Status: Idle")
             if self.pomodoro_thread:
                 self.pomodoro_thread.join()
+
     def pomodoro_timer(self):
         pomodoro_duration = 25 * 60  # 25 minutes
         break_duration = 5 * 60  # 5 minutes
@@ -527,7 +530,7 @@ class ImageProcessor:
                 if not self.pomodoro_running:
                     return
                 mins, secs = divmod(remaining, 60)
-                self.root.itemconfig(self.pomodoro_status_text, text=f"Pomodoro Status: Working - {mins:02d}:{secs:02d}")
+                self.canvas.itemconfig(self.pomodoro_status_text, text=f"Pomodoro Status: Working - {mins:02d}:{secs:02d}")
                 time.sleep(1)
             
             if not self.pomodoro_running:
@@ -539,7 +542,7 @@ class ImageProcessor:
                 if not self.pomodoro_running:
                     return
                 mins, secs = divmod(remaining, 60)
-                self.root.itemconfig(self.pomodoro_status_text, text=f"Pomodoro Status: Break - {mins:02d}:{secs:02d}")
+                self.canvas.itemconfig(self.pomodoro_status_text, text=f"Pomodoro Status: Break - {mins:02d}:{secs:02d}")
                 time.sleep(1)
             
             if not self.pomodoro_running:
@@ -547,15 +550,15 @@ class ImageProcessor:
 
             messagebox.showinfo("Pomodoro", "Break over! Ready to focus again?")
 
-        self.root.itemconfig(self.pomodoro_status_text, text="Pomodoro Status: Idle")
-        self.root.itemconfig(self.pomodoro_button_text, text="Start Pomodoro")
+        self.canvas.itemconfig(self.pomodoro_status_text, text="Pomodoro Status: Idle")
+        self.canvas.itemconfig(self.pomodoro_button_text, text="Start Pomodoro")
 
     def update_screen_usage(self):
         if self.running:
             current_session_time = time.time() - self.start_time
             total_usage_minutes = int((self.total_usage_time + current_session_time) / 60)
             self.screen_usage_label.config(text=f"Total Screen Usage Time: {total_usage_minutes} minutes")
-            self.root.after(1000, self.update_screen_usage)
+            self.canvas.after(1000, self.update_screen_usage)
 
     def adaptive_color_temperature(self):
         while self.running:
